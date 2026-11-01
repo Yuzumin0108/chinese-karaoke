@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#fff7f0">
+<title>中国語カラオケ練習</title>
+<!-- ピンインを自動でつけるための道具（読み込めなくても、貼ったピンインで動きます） -->
+<script src="https://cdn.jsdelivr.net/npm/pinyin-pro@3/dist/index.js" defer></script>
+<style>
+  :root{
+    --bg:#fff7f0; --card:#ffffff; --ink:#2b2420; --sub:#7a6d64; --line:#eadfd6;
+    --accent:#e2583e; --accent-soft:#fde3db; --now:#fff1c9;
+    --t1:#e53935; --t2:#f08c00; --t3:#2e9e48; --t4:#1e78d6; --t5:#9a9a9a;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP","PingFang SC","Noto Sans SC",sans-serif;
+    -webkit-text-size-adjust:100%;}
+  body{padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+  button{font:inherit;color:inherit;border:1px solid var(--line);background:var(--card);border-radius:12px;
+    padding:10px 14px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  button:active{transform:scale(.97)}
+  button.main{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
+  button.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:700}
+  button.small{padding:6px 10px;font-size:14px;border-radius:10px}
+  input,textarea{font:inherit;width:100%;border:1px solid var(--line);border-radius:12px;padding:12px;background:#fff;color:var(--ink)}
+  textarea{min-height:220px;line-height:1.6}
+  label{display:block;font-weight:700;margin:18px 0 6px}
+  .hint{color:var(--sub);font-size:14px;line-height:1.6;margin:6px 0}
+  .wrap{max-width:720px;margin:0 auto;padding:16px}
+  header.top{display:flex;align-items:center;gap:10px;padding:12px 16px;position:sticky;top:0;background:var(--bg);z-index:5;border-bottom:1px solid var(--line)}
+  header.top h1{font-size:18px;margin:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .hidden{display:none !important}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin:12px 0}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .row.right{justify-content:flex-end}
+  .grow{flex:1}
+
+  /* 曲リスト */
+  .song{display:flex;align-items:center;gap:10px}
+  .song .name{font-weight:700;font-size:17px}
+  .song .meta{color:var(--sub);font-size:13px;margin-top:2px}
+  .empty{text-align:center;color:var(--sub);padding:40px 10px;line-height:1.8}
+
+  /* 練習画面 */
+  #playerBox{position:sticky;top:0;z-index:4;background:#000}
+  #playerBox .ratio{position:relative;width:100%;padding-top:56.25%}
+  #playerBox .ratio>div,#playerBox iframe{position:absolute;inset:0;width:100%;height:100%}
+  .controls{background:var(--bg);border-bottom:1px solid var(--line);padding:8px 12px}
+  #playHeader{position:static}
+  #fabLoop{position:fixed;right:14px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:8;border-radius:999px;padding:12px 16px;box-shadow:0 4px 14px rgba(0,0,0,.15);font-weight:700}
+  .controls .row{gap:6px}
+  .lyrics{padding:8px 12px 50vh}
+  .ln{border-radius:14px;padding:10px 12px;margin:4px 0;transition:background .2s;cursor:pointer}
+  .ln.now{background:var(--now);box-shadow:0 0 0 2px #f3d27a inset}
+  .ln.past{opacity:.55}
+  .zh{font-size:24px;line-height:1.9;letter-spacing:.02em}
+  .ln.now .zh{font-size:27px}
+  .zh ruby{ruby-align:center}
+  .zh rt{font-size:12px;letter-spacing:0;font-family:-apple-system,"Helvetica Neue",Arial,sans-serif}
+  .ln.now .zh rt{font-size:13px}
+  .py{font-size:16px;color:var(--sub);margin-top:2px;font-family:-apple-system,"Helvetica Neue",Arial,sans-serif}
+  .ja{font-size:15px;color:#5a4f48;margin-top:4px}
+  .ln .tm{font-size:11px;color:#b7a99e;float:right}
+  body.no-zh .zh{display:none}
+  body.no-py .zh rt,body.no-py .py{visibility:hidden}
+  body.no-py .zh rt{font-size:0}
+  body.no-ja .ja{display:none}
+  body.no-color .tone{color:inherit !important}
+  .tone1{color:var(--t1)} .tone2{color:var(--t2)} .tone3{color:var(--t3)} .tone4{color:var(--t4)} .tone5{color:var(--t5)}
+  .legend{font-size:12px;color:var(--sub)}
+  .legend b{font-weight:700;margin-right:6px}
+
+  /* タイミングを決める画面 */
+  #tapPanel{position:fixed;left:0;right:0;bottom:0;z-index:10;background:#fff;border-top:2px solid var(--accent);
+    padding:12px 14px calc(12px + env(safe-area-inset-bottom));box-shadow:0 -6px 20px rgba(0,0,0,.08)}
+  #tapPanel .next{font-size:20px;margin:6px 0 10px;min-height:1.5em}
+  #tapPanel .next small{display:block;color:var(--sub);font-size:13px}
+  #tapBtn{width:100%;padding:22px;font-size:20px}
+
+  /* ちょい直し画面 */
+  .adj{display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--line);padding:8px 0}
+  .adj .t{font-variant-numeric:tabular-nums;width:58px;font-weight:700}
+  .adj .x{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  /* お知らせ */
+  #toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#2b2420;color:#fff;padding:10px 16px;
+    border-radius:999px;font-size:14px;z-index:20;opacity:0;transition:opacity .3s;pointer-events:none;max-width:90vw;text-align:center}
+  #toast.show{opacity:.93}
+  dialog{border:none;border-radius:18px;padding:18px;max-width:92vw;width:520px}
+  dialog::backdrop{background:rgba(0,0,0,.35)}
+</style>
+</head>
+<body>
+
+<!-- ============ 1. 曲のリスト ============ -->
+<section id="viewList">
+  <header class="top">
+    <h1>🎤 中国語カラオケ練習</h1>
+    <button class="small" id="btnBackup">バックアップ</button>
+  </header>
+  <div class="wrap">
+    <div id="songList"></div>
+    <button class="main" id="btnAdd" style="width:100%;margin-top:10px">＋ 曲を追加する</button>
+    <p class="hint" style="margin-top:18px">
+      ※ 歌詞などのデータは、<b>このスマホのこのブラウザの中だけ</b>に保存されます。ほかの人には見えません。<br>
+      ※ ブラウザの履歴を消すと、データも消えることがあります。ときどき「バックアップ」でコピーして、メモ帳などに残しておくと安心です。
+    </p>
+  </div>
+</section>
+
+<!-- ============ 2. 曲の登録・編集 ============ -->
+<section id="viewEdit" class="hidden">
+  <header class="top">
+    <button class="small" data-go="list">← もどる</button>
+    <h1 id="editTitle">曲を追加</h1>
+  </header>
+  <div class="wrap">
+    <label for="fTitle">曲の名前</label>
+    <input id="fTitle" placeholder="例：〇〇〇（歌手の名前）">
+
+    <label for="fUrl">YouTubeのリンク</label>
+    <input id="fUrl" inputmode="url" placeholder="https://www.youtube.com/watch?v=...">
+    <p class="hint">YouTubeアプリの「共有」→「コピー」で出てくるリンクをそのまま貼ればOKです。</p>
+
+    <label for="fLyrics">歌詞（中国語・ピンイン・日本語訳）</label>
+    <div class="card" style="background:var(--accent-soft);border-color:#f5c2b5">
+      <b>歌詞の形がバラバラなときは</b>
+      <p class="hint" style="color:#6b4a40">下のボタンで「ChatGPTへのお願い文」をコピー → ChatGPTの歌詞の会話に貼って送る → 出てきた答えを、この下の欄に貼ってください。</p>
+      <button class="small" id="btnPrompt">📋 ChatGPTへのお願い文をコピー</button>
+    </div>
+    <textarea id="fLyrics" placeholder="ここに歌詞を貼り付けます。&#10;&#10;中国語の行&#10;ピンインの行&#10;日本語訳の行&#10;（1行あける）&#10;中国語の行&#10;……"></textarea>
+    <p class="hint">中国語だけでも大丈夫です（ピンインは自動でつきます）。</p>
+
+    <div class="card">
+      <b>読み取れた内容（たしかめ用）</b>
+      <p class="hint" id="parseInfo">歌詞を貼ると、ここに何行読み取れたか出ます。</p>
+      <div id="parsePreview" style="max-height:240px;overflow:auto"></div>
+    </div>
+
+    <div class="row" style="margin-top:16px">
+      <button id="btnDelete" class="small hidden" style="color:#c0392b">この曲を消す</button>
+      <div class="grow"></div>
+      <button class="main" id="btnSave">保存する</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 3. 練習（カラオケ）画面 ============ -->
+<section id="viewPlay" class="hidden">
+  <header class="top" id="playHeader">
+    <button class="small" data-go="list">← 曲リスト</button>
+    <h1 id="playTitle"></h1>
+    <button class="small" id="btnEditSong">編集</button>
+  </header>
+  <div id="playerBox"><div class="ratio"><div id="ytPlayer"></div></div></div>
+  <div class="controls" id="controls">
+    <div class="row">
+      <button class="small on" data-toggle="zh">中文</button>
+      <button class="small on" data-toggle="py">ピンイン</button>
+      <button class="small on" data-toggle="ja">日本語</button>
+      <button class="small on" data-toggle="color">声調の色</button>
+    </div>
+    <div class="row" style="margin-top:6px">
+      <span class="hint" style="margin:0">速さ</span>
+      <button class="small" data-rate="0.5">0.5</button>
+      <button class="small" data-rate="0.75">0.75</button>
+      <button class="small on" data-rate="1">1倍</button>
+      <div class="grow"></div>
+      <button class="small" id="btnLoop">🔁 この行をくり返す</button>
+    </div>
+    <div class="row" style="margin-top:6px">
+      <button class="small" id="btnTapMode">⏱ 歌詞のタイミングを決める</button>
+      <button class="small" id="btnAdjust">ちょい直し</button>
+      <div class="grow"></div>
+      <span class="legend"><b class="tone1">1声</b><b class="tone2">2声</b><b class="tone3">3声</b><b class="tone4">4声</b><b class="tone5">軽声</b></span>
+    </div>
+    <p class="hint" id="timingNote" style="margin:6px 0 0"></p>
+  </div>
+  <div class="lyrics" id="lyrics"></div>
+  <button id="fabLoop">🔁 くり返し</button>
+
+  <!-- タイミングを決めるときに下に出るパネル -->
+  <div id="tapPanel" class="hidden">
+    <div class="row">
+      <b class="grow">⏱ タイミングを決める</b>
+      <button class="small" id="tapUndo">1つ戻す</button>
+      <button class="small" id="tapCancel">やめる</button>
+    </div>
+    <div class="next" id="tapNext"></div>
+    <button class="main" id="tapBtn">今、この行が始まった！</button>
+  </div>
+</section>
+
+<!-- ちょい直し -->
+<dialog id="dlgAdjust">
+  <div class="row"><b class="grow">タイミングのちょい直し</b><button class="small" id="adjClose">閉じる</button></div>
+  <p class="hint">「−」で早く、「＋」で遅くなります（1回で0.2秒）。「▶」でその行から聴けます。「今」を押すと、いま流れている時間がその行の始まりになります。</p>
+  <div id="adjList" style="max-height:60vh;overflow:auto"></div>
+</dialog>
+
+<!-- バックアップ -->
+<dialog id="dlgBackup">
+  <div class="row"><b class="grow">バックアップ</b><button class="small" id="bkClose">閉じる</button></div>
+  <p class="hint"><b>残す：</b>「コピー」を押して、メモ帳アプリなどに貼って保存します。<br>
+    <b>もどす：</b>保存しておいた文を下の欄に貼って「読み込む」を押します（同じ曲は上書き、ほかの曲はそのまま残ります）。</p>
+  <textarea id="bkText" style="min-height:160px;font-size:12px"></textarea>
+  <div class="row right" style="margin-top:10px">
+    <button class="small" id="bkCopy">コピー</button>
+    <button class="small main" id="bkLoad">読み込む</button>
+  </div>
+</dialog>
+
+<div id="toast"></div>
+
+<script>
+/* =========================================================
+   中国語カラオケ練習
+   ・曲（名前／YouTube／歌詞／タイミング）はブラウザの中（localStorage）に保存
+   ・歌詞は「中国語・ピンイン・日本語訳」を1組にして読み取る
+   ========================================================= */
+
+const STORE_KEY = 'ckaraoke.songs.v1';
+const SETTING_KEY = 'ckaraoke.settings.v1';
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => Array.from(document.querySelectorAll(s));
+
+/* ---------- 保存と読み出し ---------- */
+function loadSongs(){
+  try{ return JSON.parse(localStorage.getItem(STORE_KEY)) || []; }catch(e){ return []; }
+}
+function saveSongs(list){
+  try{ localStorage.setItem(STORE_KEY, JSON.stringify(list)); return true; }
+  catch(e){ toast('保存できませんでした（ブラウザの設定を確認してください）'); return false; }
+}
+function loadSettings(){
+  try{ return Object.assign({zh:true,py:true,ja:true,color:true,rate:1}, JSON.parse(localStorage.getItem(SETTING_KEY))||{}); }
+  catch(e){ return {zh:true,py:true,ja:true,color:true,rate:1}; }
+}
+function saveSettings(){ try{ localStorage.setItem(SETTING_KEY, JSON.stringify(settings)); }catch(e){} }
+
+let songs = loadSongs();
+let settings = loadSettings();
+
+function toast(msg){
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast._id); toast._id = setTimeout(()=>t.classList.remove('show'), 2200);
+}
+function esc(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function fmt(sec){
+  if(sec==null || isNaN(sec)) return '--:--';
+  sec = Math.max(0, sec); const m = Math.floor(sec/60), s = (sec%60);
+  return m + ':' + s.toFixed(1).padStart(4,'0');
+}
+async function copyText(text){
+  try{ await navigator.clipboard.writeText(text); return true; }
+  catch(e){
+    const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta);
+    ta.select(); let ok=false; try{ ok = document.execCommand('copy'); }catch(_){}
+    ta.remove(); return ok;
+  }
+}
+
+/* ---------- YouTubeのリンクから動画の番号を取り出す ---------- */
+function youtubeId(url){
+  url = (url||'').trim();
+  const m = url.match(/(?:youtu\.be\/|[?&]v=|\/shorts\/|\/embed\/|\/live\/|\/v\/)([A-Za-z0-9_-]{11})/);
+  if(m) return m[1];
+  if(/^[A-Za-z0-9_-]{11}$/.test(url)) return url;
+  return null;
+}
+
+/* ---------- 歌詞を読み取る ---------- */
+const RE_HAN  = /[㐀-鿿豈-﫿]/;
+const RE_KANA = /[぀-ヿㇰ-ㇿｦ-ﾟ]/;
+const RE_TONEMARK = /[āáǎàēéěèīíǐìōóǒòūúǔùǖǘǚǜü]/i;
+
+function cleanLine(s){
+  return s
+    .replace(/\*\*|__|`/g,'')                       // 太字などの記号
+    .replace(/^\s*[-・•*>]\s*/,'')                   // 先頭の箇条書き記号
+    .replace(/^\s*\(?\d{1,3}[.)．、]\s*/,'')          // 先頭の番号「1.」など
+    .replace(/^\s*(中文|中国語|中國語|歌詞|原文|汉字|漢字|拼音|ピンイン|pinyin|日本語訳|日本語|和訳|訳|意味)\s*[:：]\s*/i,'')
+    .trim();
+}
+function kindOf(s){
+  if(RE_KANA.test(s)) return 'ja';
+  if(RE_HAN.test(s)) return 'zh';
+  if(/[a-zA-Zü]/.test(s)) return 'py';
+  return 'skip';
+}
+function isSectionLabel(s){
+  // 「【サビ】」「(Verse 1)」「[Chorus]」などの見出しだけの行
+  return /^[\[【(（〔].{0,20}[\]】)）〕]$/.test(s) || /^(verse|chorus|bridge|intro|outro|サビ|Aメロ|Bメロ|間奏)\s*\d*$/i.test(s);
+}
+function parseLyrics(text){
+  const lines = (text||'').replace(/\r/g,'').split('\n');
+  const out = []; let cur = null;
+  const push = () => { if(cur && cur.zh) out.push(cur); cur = null; };
+  for(const raw of lines){
+    const s = cleanLine(raw);
+    if(!s){ push(); continue; }                     // 空行 = 次の組へ
+    if(isSectionLabel(s)) continue;
+    const k = kindOf(s);
+    if(k==='skip') continue;
+    if(k==='zh'){
+      if(cur && cur.zh) push();                     // 中国語が続いたら次の組
+      cur = cur || {zh:'',py:'',ja:''};
+      cur.zh = s;
+    }else{
+      if(!cur) continue;                            // 中国語より前のピンイン・訳は無視
+      if(k==='py'){ if(!cur.py) cur.py = s; else if(!cur.ja) cur.ja = s; }
+      else { cur.ja = cur.ja ? cur.ja + ' ' + s : s; }
+    }
+  }
+  push();
+  return out;
+}
+
+/* ---------- ピンインと声調 ---------- */
+const TONE_TABLE = {
+  'ā':1,'á':2,'ǎ':3,'à':4,'ē':1,'é':2,'ě':3,'è':4,'ī':1,'í':2,'ǐ':3,'ì':4,
+  'ō':1,'ó':2,'ǒ':3,'ò':4,'ū':1,'ú':2,'ǔ':3,'ù':4,'ǖ':1,'ǘ':2,'ǚ':3,'ǜ':4,
+};
+function toneOf(syl){
+  for(const ch of (syl||'').toLowerCase()) if(TONE_TABLE[ch]) return TONE_TABLE[ch];
+  const n = (syl||'').match(/([1-5])$/); if(n) return +n[1];
+  return 5;
+}
+// 中国語の1文字ずつにピンインをつける（道具が読み込めていれば）
+function autoPinyin(zh){
+  const P = window.pinyinPro;
+  const chars = Array.from(zh);
+  const han = chars.filter(c=>RE_HAN.test(c));
+  if(!P || !P.pinyin || !han.length) return null;
+  try{
+    let arr = P.pinyin(han.join(''), {type:'array'});   // 前後の文字も見て読み方を決める
+    if(!Array.isArray(arr) || arr.length !== han.length){
+      arr = han.map(c => P.pinyin(c));
+    }
+    let i = 0;
+    return chars.map(c => RE_HAN.test(c) ? {c, p: arr[i++] || ''} : {c, p: null});
+  }catch(e){ return null; }
+}
+function renderZh(zh){
+  const units = autoPinyin(zh);
+  if(!units){
+    return {html: esc(zh), auto:false};
+  }
+  const html = units.map(u => u.p===null ? esc(u.c)
+    : `<ruby class="tone tone${toneOf(u.p)}">${esc(u.c)}<rt>${esc(u.p)}</rt></ruby>`).join('');
+  return {html, auto:true};
+}
+function renderPy(py){
+  return py.split(/(\s+)/).map(w => /\s/.test(w)||!w ? w : `<span class="tone tone${toneOf(w)}">${esc(w)}</span>`).join('');
+}
+
+/* ---------- 画面の切り替え ---------- */
+function show(view){
+  ['viewList','viewEdit','viewPlay'].forEach(id => $('#'+id).classList.toggle('hidden', id!==view));
+  window.scrollTo(0,0);
+}
+document.addEventListener('click', e=>{
+  const go = e.target.closest('[data-go]');
+  if(go && go.dataset.go==='list'){ stopPlayer(); renderList(); show('viewList'); }
+});
+
+/* ---------- 1. 曲のリスト ---------- */
+function renderList(){
+  const box = $('#songList');
+  if(!songs.length){
+    box.innerHTML = `<div class="empty">まだ曲がありません。<br>下の「＋ 曲を追加する」から始めましょう。</div>`;
+    return;
+  }
+  box.innerHTML = songs.map((s,i)=>{
+    const n = (s.lines||[]).length;
+    const timed = (s.times||[]).filter(t=>t!=null).length;
+    const st = !n ? '歌詞なし' : (timed>=n ? '✅ タイミング決定ずみ' : (timed ? `⏱ タイミング ${timed}/${n}行` : '⏱ タイミングまだ'));
+    return `<div class="card song" data-i="${i}">
+      <div class="grow"><div class="name">${esc(s.title||'名前なし')}</div><div class="meta">${n}行 ・ ${st}</div></div>
+      <button class="main small" data-play="${i}">練習 ▶</button></div>`;
+  }).join('');
+}
+$('#songList').addEventListener('click', e=>{
+  const b = e.target.closest('[data-play]'); if(b){ openPlay(+b.dataset.play); return; }
+  const c = e.target.closest('.song'); if(c) openPlay(+c.dataset.i);
+});
+$('#btnAdd').onclick = ()=> openEdit(-1);
+
+/* ---------- 2. 曲の登録・編集 ---------- */
+let editIndex = -1;
+function openEdit(i){
+  editIndex = i;
+  const s = i>=0 ? songs[i] : {title:'',url:'',raw:''};
+  $('#editTitle').textContent = i>=0 ? '曲を編集' : '曲を追加';
+  $('#fTitle').value = s.title||'';
+  $('#fUrl').value = s.url||'';
+  $('#fLyrics').value = s.raw||'';
+  $('#btnDelete').classList.toggle('hidden', i<0);
+  updatePreview();
+  show('viewEdit');
+}
+function updatePreview(){
+  const lines = parseLyrics($('#fLyrics').value);
+  const noPy = lines.filter(l=>!l.py).length, noJa = lines.filter(l=>!l.ja).length;
+  let info = lines.length ? `${lines.length}行 読み取れました。` : '中国語の行が見つかりません。';
+  if(lines.length && noPy) info += ` ピンインがない行：${noPy}（自動でつけます）`;
+  if(lines.length && noJa) info += ` 日本語訳がない行：${noJa}`;
+  $('#parseInfo').textContent = info;
+  $('#parsePreview').innerHTML = lines.slice(0,60).map((l,i)=>
+    `<div style="border-top:1px solid var(--line);padding:6px 0;font-size:14px">
+      <b>${i+1}.</b> ${esc(l.zh)}<br><span style="color:var(--sub)">${esc(l.py||'（ピンインなし）')}</span><br>${esc(l.ja||'（訳なし）')}</div>`).join('');
+}
+$('#fLyrics').addEventListener('input', updatePreview);
+
+$('#btnPrompt').onclick = async ()=>{
+  const p =
+`さっき貼った中国語の歌詞を、カラオケ練習用に並べ直してください。
+ルール：
+・歌詞の1行ごとに、次の3行を書く
+  1行目：中国語（簡体字・元の歌詞のまま）
+  2行目：ピンイン（声調記号つき。例：wǒ ài nǐ　1文字ごとにスペースで区切る）
+  3行目：日本語訳
+・1組ごとに空の行を1行あける
+・「中国語：」などの見出し、番号、説明、前置きは書かない
+・同じ歌詞がくり返し出てくるところ（サビなど）も、歌う順番どおりに省略せず全部書く`;
+  toast(await copyText(p) ? 'コピーしました。ChatGPTに貼って送ってください' : 'コピーできませんでした');
+};
+
+$('#btnSave').onclick = ()=>{
+  const title = $('#fTitle').value.trim() || '名前なし';
+  const url = $('#fUrl').value.trim();
+  const raw = $('#fLyrics').value;
+  if(!youtubeId(url)){ toast('YouTubeのリンクが読み取れません。もう一度コピーしてみてください'); return; }
+  const lines = parseLyrics(raw);
+  if(!lines.length){ toast('中国語の歌詞が見つかりません'); return; }
+  let s;
+  if(editIndex>=0){
+    s = songs[editIndex];
+    // 歌詞の行数が変わったら、タイミングは行の順番どおりに残せる分だけ残す
+    const oldTimes = s.times||[];
+    s.times = lines.map((_,i)=> oldTimes[i]!=null ? oldTimes[i] : null);
+    Object.assign(s, {title,url,raw,lines,updated:Date.now()});
+  }else{
+    s = {id: 's'+Date.now(), title, url, raw, lines, times: lines.map(()=>null), updated:Date.now()};
+    songs.unshift(s); editIndex = 0;
+  }
+  if(saveSongs(songs)){ toast('保存しました'); openPlay(songs.indexOf(s)); }
+};
+$('#btnDelete').onclick = ()=>{
+  if(editIndex<0) return;
+  if($('#btnDelete').dataset.sure!=='1'){
+    $('#btnDelete').dataset.sure='1'; $('#btnDelete').textContent='本当に消す？もう一度押す';
+    setTimeout(()=>{ $('#btnDelete').dataset.sure=''; $('#btnDelete').textContent='この曲を消す'; }, 4000);
+    return;
+  }
+  songs.splice(editIndex,1); saveSongs(songs); toast('消しました'); renderList(); show('viewList');
+};
+
+/* ---------- 3. 練習画面 ---------- */
+let cur = null;          // 今の曲
+let curIdx = -1;         // 今光っている行
+let player = null, playerReady = false, ytApiLoaded = false, pendingVideo = null;
+let loopOn = false, loopLine = -1;
+let tapMode = false, tapPos = 0;
+let ticker = null;
+
+function openPlay(i){
+  cur = songs[i]; if(!cur) return;
+  cur.times = cur.times || cur.lines.map(()=>null);
+  $('#playTitle').textContent = cur.title;
+  $('#btnEditSong').onclick = ()=>{ stopPlayer(); openEdit(songs.indexOf(cur)); };
+  curIdx = -1; loopOn = false; setLoopBtn(); exitTapMode(false);
+  renderLyrics(); applySettings(); updateTimingNote();
+  show('viewPlay');
+  stickControls();
+  loadVideo(youtubeId(cur.url));
+}
+
+function renderLyrics(){
+  let anyAuto = false;
+  $('#lyrics').innerHTML = cur.lines.map((l,i)=>{
+    const z = renderZh(l.zh); anyAuto = anyAuto || z.auto;
+    // 自動のピンインが文字の上に出るときは、貼ったピンインの行は出さない
+    const pyLine = (!z.auto && l.py) ? `<div class="py">${renderPy(l.py)}</div>` : '';
+    return `<div class="ln" data-i="${i}">
+      <span class="tm">${cur.times[i]!=null ? fmt(cur.times[i]) : ''}</span>
+      <div class="zh">${z.html}</div>${pyLine}
+      ${l.ja ? `<div class="ja">${esc(l.ja)}</div>` : ''}</div>`;
+  }).join('');
+  renderLyrics.auto = anyAuto;
+}
+// ピンインの道具があとから読み込まれたら、もう一度描き直す
+window.addEventListener('load', ()=>{ if(cur && !$('#viewPlay').classList.contains('hidden')){ renderLyrics(); highlight(curIdx, false); } });
+
+$('#lyrics').addEventListener('click', e=>{
+  const ln = e.target.closest('.ln'); if(!ln || tapMode) return;
+  const i = +ln.dataset.i;
+  const t = cur.times[i];
+  if(t==null){ toast('この行はまだタイミングが決まっていません'); return; }
+  if(loopOn) loopLine = i;
+  seek(t); play();
+  highlight(i, true);
+});
+
+function stickControls(){
+  // 動画の下に操作ボタンがくっつくようにする
+  requestAnimationFrame(()=>{
+    const h = $('#playerBox').offsetHeight;
+  });
+}
+window.addEventListener('resize', ()=>{ if(!$('#viewPlay').classList.contains('hidden')) stickControls(); });
+
+function updateTimingNote(){
+  const n = cur.lines.length, done = cur.times.filter(t=>t!=null).length;
+  $('#timingNote').innerHTML = done>=n ? ''
+    : (done ? `タイミングは ${done}/${n} 行まで決まっています。` : '👉 最初に1回だけ「⏱ 歌詞のタイミングを決める」をすると、歌詞が曲に合わせて自動で光るようになります。');
+}
+
+/* 表示の切り替え・速さ */
+function applySettings(){
+  document.body.classList.toggle('no-zh', !settings.zh);
+  document.body.classList.toggle('no-py', !settings.py);
+  document.body.classList.toggle('no-ja', !settings.ja);
+  document.body.classList.toggle('no-color', !settings.color);
+  $$('[data-toggle]').forEach(b=> b.classList.toggle('on', !!settings[b.dataset.toggle]));
+  $$('[data-rate]').forEach(b=> b.classList.toggle('on', +b.dataset.rate === settings.rate));
+}
+$$('[data-toggle]').forEach(b=> b.onclick = ()=>{ settings[b.dataset.toggle] = !settings[b.dataset.toggle]; saveSettings(); applySettings(); });
+$$('[data-rate]').forEach(b=> b.onclick = ()=>{
+  settings.rate = +b.dataset.rate; saveSettings(); applySettings();
+  if(playerReady && player.setPlaybackRate) player.setPlaybackRate(settings.rate);
+});
+
+/* 1行くり返し */
+function setLoopBtn(){ $('#btnLoop').classList.toggle('on', loopOn); $('#btnLoop').textContent = loopOn ? '🔁 くり返し中（止める）' : '🔁 この行をくり返す';
+  $('#fabLoop').classList.toggle('main', loopOn); $('#fabLoop').textContent = loopOn ? '🔁 くり返し中' : '🔁 くり返し'; }
+$('#fabLoop').onclick = ()=> $('#btnLoop').onclick();
+$('#btnLoop').onclick = ()=>{
+  if(!loopOn){
+    const i = curIdx>=0 ? curIdx : 0;
+    if(cur.times[i]==null){ toast('先に歌詞のタイミングを決めてください'); return; }
+    loopOn = true; loopLine = i; toast(`${i+1}行目をくり返します（ほかの行をタップすると、その行に変わります）`);
+  }else{ loopOn = false; }
+  setLoopBtn();
+};
+function lineEnd(i){
+  // 次の行の始まり = この行の終わり。最後の行は+8秒
+  for(let j=i+1;j<cur.times.length;j++) if(cur.times[j]!=null) return cur.times[j];
+  return cur.times[i] + 8;
+}
+
+/* 光らせる行を決める */
+function lineAt(t){
+  let idx = -1;
+  for(let i=0;i<cur.times.length;i++){ if(cur.times[i]!=null && cur.times[i] <= t + 0.05) idx = i; }
+  return idx;
+}
+function highlight(i, scroll){
+  const els = $$('#lyrics .ln');
+  els.forEach((el,k)=>{ el.classList.toggle('now', k===i); el.classList.toggle('past', i>=0 && k<i); });
+  if(scroll && i>=0 && els[i]){
+    const top = els[i].getBoundingClientRect().top + window.scrollY;
+    const offset = $('#playerBox').offsetHeight + 16;
+    window.scrollTo({top: Math.max(0, top - offset), behavior:'smooth'});
+  }
+  curIdx = i;
+}
+function tick(){
+  if(!playerReady || !cur || !player.getCurrentTime) return;
+  const t = player.getCurrentTime();
+  if(loopOn && loopLine>=0 && cur.times[loopLine]!=null){
+    if(t >= lineEnd(loopLine) - 0.05 || t < cur.times[loopLine] - 1){ seek(cur.times[loopLine]); return; }
+  }
+  if(tapMode) return;
+  const i = lineAt(t);
+  if(i !== curIdx) highlight(i, true);
+}
+
+/* ---------- YouTubeのプレーヤー ---------- */
+function loadVideo(id){
+  if(!id){ toast('YouTubeのリンクが読み取れません'); return; }
+  if(player && playerReady){ player.loadVideoById({videoId:id}); player.pauseVideo && setTimeout(()=>player.pauseVideo(),300); startTicker(); return; }
+  pendingVideo = id;
+  if(!ytApiLoaded){
+    ytApiLoaded = true;
+    const s = document.createElement('script'); s.src = 'https://www.youtube.com/iframe_api';
+    s.onerror = ()=> toast('YouTubeを読み込めませんでした。電波を確認してください');
+    document.head.appendChild(s);
+  }else if(window.YT && YT.Player){ makePlayer(); }
+}
+window.onYouTubeIframeAPIReady = ()=> makePlayer();
+function makePlayer(){
+  if(!pendingVideo) return;
+  player = new YT.Player('ytPlayer', {
+    videoId: pendingVideo,
+    playerVars: {playsinline:1, rel:0, modestbranding:1},
+    events: {
+      onReady: ()=>{ playerReady = true; try{ player.setPlaybackRate(settings.rate); }catch(e){} stickControls(); startTicker(); },
+      onError: ()=> toast('この動画はここでは再生できないようです（YouTubeの設定による制限）'),
+    }
+  });
+  pendingVideo = null;
+}
+function startTicker(){ clearInterval(ticker); ticker = setInterval(tick, 100); }
+function stopPlayer(){ try{ player && player.pauseVideo && player.pauseVideo(); }catch(e){} exitTapMode(false); }
+function seek(t){ try{ player.seekTo(Math.max(0,t), true); }catch(e){} }
+function play(){ try{ player.playVideo(); }catch(e){} }
+function now(){ try{ return player.getCurrentTime(); }catch(e){ return null; } }
+
+/* ---------- タイミングを決める ---------- */
+$('#btnTapMode').onclick = ()=>{
+  if(!playerReady){ toast('動画の読み込みを待ってください'); return; }
+  const done = cur.times.filter(t=>t!=null).length;
+  // まだ途中なら続きから。全部決まっていれば最初から
+  tapPos = (done>0 && done<cur.lines.length && cur.times[done-1]!=null) ? done : 0;
+  if(tapPos===0){ seek(0); } else { seek(Math.max(0, cur.times[tapPos-1]-2)); }
+  loopOn = false; setLoopBtn();
+  tapMode = true;
+  $('#tapPanel').classList.remove('hidden'); $('#fabLoop').classList.add('hidden');
+  updateTapPanel(); play();
+  toast(tapPos ? `${tapPos+1}行目から続けます` : '曲が流れます。行が歌い始まった瞬間にボタンを押してください');
+};
+function updateTapPanel(){
+  const l = cur.lines[tapPos];
+  $('#tapNext').innerHTML = l ? `<small>次に押す行（${tapPos+1}/${cur.lines.length}）</small>${esc(l.zh)}` : '全部できました！';
+  highlight(tapPos, true);
+}
+$('#tapBtn').onclick = ()=>{
+  const t = now(); if(t==null) return;
+  if(tapPos >= cur.lines.length) return;
+  cur.times[tapPos] = Math.max(0, +(t - 0.25).toFixed(2));   // 押すのが少しおくれる分を引く
+  tapPos++;
+  if(tapPos >= cur.lines.length){ saveSongs(songs); exitTapMode(true); toast('🎉 タイミングが決まりました！'); return; }
+  saveSongs(songs); updateTapPanel();
+};
+$('#tapUndo').onclick = ()=>{
+  if(tapPos<=0) return;
+  tapPos--; const back = cur.times[tapPos]; cur.times[tapPos] = null; saveSongs(songs);
+  seek(Math.max(0, (back||0) - 3)); updateTapPanel();
+};
+$('#tapCancel').onclick = ()=>{ exitTapMode(true); toast('ここまでのタイミングは保存しました'); };
+function exitTapMode(rerender){
+  tapMode = false; $('#tapPanel').classList.add('hidden'); $('#fabLoop').classList.remove('hidden');
+  if(rerender && cur){ renderLyrics(); updateTimingNote(); curIdx=-1; }
+}
+
+/* ---------- ちょい直し ---------- */
+$('#btnAdjust').onclick = ()=>{ renderAdjust(); $('#dlgAdjust').showModal(); };
+$('#adjClose').onclick = ()=>{ $('#dlgAdjust').close(); renderLyrics(); updateTimingNote(); curIdx=-1; };
+function renderAdjust(){
+  $('#adjList').innerHTML = cur.lines.map((l,i)=>`<div class="adj" data-i="${i}">
+    <span class="t">${fmt(cur.times[i])}</span>
+    <span class="x">${esc(l.zh)}</span>
+    <button class="small" data-a="-">−</button><button class="small" data-a="+">＋</button>
+    <button class="small" data-a="now">今</button><button class="small" data-a="play">▶</button></div>`).join('');
+}
+$('#adjList').addEventListener('click', e=>{
+  const b = e.target.closest('[data-a]'); if(!b) return;
+  const i = +b.closest('.adj').dataset.i, a = b.dataset.a;
+  if(a==='play'){ if(cur.times[i]==null){ toast('まだ決まっていません'); return; } seek(cur.times[i]); play(); return; }
+  if(a==='now'){ const t = now(); if(t==null) return; cur.times[i] = +t.toFixed(2); }
+  else{
+    if(cur.times[i]==null){ toast('「今」で先に時間を入れてください'); return; }
+    cur.times[i] = Math.max(0, +(cur.times[i] + (a==='+'?0.2:-0.2)).toFixed(2));
+    seek(cur.times[i]); play();
+  }
+  saveSongs(songs);
+  b.closest('.adj').querySelector('.t').textContent = fmt(cur.times[i]);
+});
+
+/* ---------- バックアップ ---------- */
+$('#btnBackup').onclick = ()=>{
+  $('#bkText').value = JSON.stringify({app:'chinese-karaoke', version:1, songs}, null, 0);
+  $('#dlgBackup').showModal();
+};
+$('#bkClose').onclick = ()=> $('#dlgBackup').close();
+$('#bkCopy').onclick = async ()=>{ toast(await copyText($('#bkText').value) ? 'コピーしました。メモ帳などに貼って保存してください' : 'コピーできませんでした'); };
+$('#bkLoad').onclick = ()=>{
+  let data; try{ data = JSON.parse($('#bkText').value); }catch(e){ toast('読み込めませんでした（全部コピーできているか確認してください）'); return; }
+  const list = Array.isArray(data) ? data : data.songs;
+  if(!Array.isArray(list)){ toast('バックアップの形ではないようです'); return; }
+  let add=0, upd=0;
+  for(const s of list){
+    if(!s || !s.lines) continue;
+    const k = songs.findIndex(x=>x.id===s.id);
+    if(k>=0){ songs[k]=s; upd++; } else { songs.push(s); add++; }
+  }
+  saveSongs(songs); renderList(); $('#dlgBackup').close();
+  toast(`読み込みました（新しく${add}曲・上書き${upd}曲）`);
+};
+
+/* ---------- はじめに ---------- */
+renderList();
+</script>
+</body>
+</html>
