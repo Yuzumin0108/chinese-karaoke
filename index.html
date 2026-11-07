@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#fff7f0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="中国語カラオケ">
 <title>中国語カラオケ練習</title>
 <!-- ピンインを自動でつけるための道具（読み込めなくても、貼ったピンインで動きます） -->
 <script src="https://cdn.jsdelivr.net/npm/pinyin-pro@3/dist/index.js" defer></script>
@@ -43,6 +46,9 @@
   .song .name{font-weight:700;font-size:17px}
   .song .meta{color:var(--sub);font-size:13px;margin-top:2px}
   .empty{text-align:center;color:var(--sub);padding:40px 10px;line-height:1.8}
+  .notice{background:#fff4d6;border:1px solid #f0d58a;border-radius:14px;padding:12px 14px;margin:12px 0;font-size:14px;line-height:1.7}
+  .notice b{display:block;font-size:15px;margin-bottom:2px}
+  .notice.home{background:#e9f4ff;border-color:#a9cdf2}
 
   /* 練習画面 */
   #playerBox{position:sticky;top:0;z-index:4;background:#000}
@@ -102,11 +108,13 @@
     <button class="small" id="btnBackup">バックアップ</button>
   </header>
   <div class="wrap">
+    <div id="homeNotice" class="notice home hidden"></div>
+    <div id="backupNotice" class="notice hidden"></div>
     <div id="songList"></div>
     <button class="main" id="btnAdd" style="width:100%;margin-top:10px">＋ 曲を追加する</button>
     <p class="hint" style="margin-top:18px">
       ※ 歌詞などのデータは、<b>このスマホのこのブラウザの中だけ</b>に保存されます。ほかの人には見えません。<br>
-      ※ ブラウザの履歴を消すと、データも消えることがあります。ときどき「バックアップ」でコピーして、メモ帳などに残しておくと安心です。
+      ※ iPhoneのSafariでは、7日ほど開かないとデータが消えることがあります。<b>ホーム画面のアイコンから使う</b>のと、<b>ときどき「バックアップ」でファイルに保存</b>しておくのがおすすめです。
     </p>
   </div>
 </section>
@@ -204,13 +212,27 @@
 <!-- バックアップ -->
 <dialog id="dlgBackup">
   <div class="row"><b class="grow">バックアップ</b><button class="small" id="bkClose">閉じる</button></div>
-  <p class="hint"><b>残す：</b>「コピー」を押して、メモ帳アプリなどに貼って保存します。<br>
-    <b>もどす：</b>保存しておいた文を下の欄に貼って「読み込む」を押します（同じ曲は上書き、ほかの曲はそのまま残ります）。</p>
-  <textarea id="bkText" style="min-height:160px;font-size:12px"></textarea>
-  <div class="row right" style="margin-top:10px">
-    <button class="small" id="bkCopy">コピー</button>
-    <button class="small main" id="bkLoad">読み込む</button>
+  <p class="hint" id="bkLast"></p>
+  <div class="card">
+    <b>① 残す（ファイルに保存）</b>
+    <p class="hint">押すと保存先を聞かれます。iPhoneなら「<b>"ファイル"に保存</b>」→「iCloud Drive」を選ぶと、スマホが変わっても残ります。</p>
+    <button class="main" id="bkSave" style="width:100%">💾 バックアップをファイルに保存</button>
   </div>
+  <div class="card">
+    <b>② もどす（ファイルから読み込む）</b>
+    <p class="hint">保存しておいたファイルを選びます。同じ曲は上書き、ほかの曲はそのまま残ります。</p>
+    <button id="bkOpen" style="width:100%">📂 ファイルを選んで読み込む</button>
+    <input type="file" id="bkFile" accept=".json,application/json,text/plain" class="hidden">
+  </div>
+  <details style="margin-top:8px">
+    <summary class="hint" style="cursor:pointer">文字でコピー／貼り付けする（予備のやり方）</summary>
+    <p class="hint">「コピー」してメモ帳などに貼って残せます。もどすときは、残した文を下の欄に貼って「貼った文を読み込む」を押します。</p>
+    <textarea id="bkText" style="min-height:120px;font-size:12px"></textarea>
+    <div class="row right" style="margin-top:10px">
+      <button class="small" id="bkCopy">コピー</button>
+      <button class="small" id="bkLoad">貼った文を読み込む</button>
+    </div>
+  </details>
 </dialog>
 
 <div id="toast"></div>
@@ -224,6 +246,8 @@
 
 const STORE_KEY = 'ckaraoke.songs.v1';
 const SETTING_KEY = 'ckaraoke.settings.v1';
+const CHANGED_KEY = 'ckaraoke.changedAt';
+const BACKUP_KEY = 'ckaraoke.backupAt';
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => Array.from(document.querySelectorAll(s));
 
@@ -232,7 +256,7 @@ function loadSongs(){
   try{ return JSON.parse(localStorage.getItem(STORE_KEY)) || []; }catch(e){ return []; }
 }
 function saveSongs(list){
-  try{ localStorage.setItem(STORE_KEY, JSON.stringify(list)); return true; }
+  try{ localStorage.setItem(STORE_KEY, JSON.stringify(list)); localStorage.setItem(CHANGED_KEY, String(Date.now())); return true; }
   catch(e){ toast('保存できませんでした（ブラウザの設定を確認してください）'); return false; }
 }
 function loadSettings(){
@@ -369,6 +393,7 @@ document.addEventListener('click', e=>{
 
 /* ---------- 1. 曲のリスト ---------- */
 function renderList(){
+  renderNotices();
   const box = $('#songList');
   if(!songs.length){
     box.innerHTML = `<div class="empty">まだ曲がありません。<br>下の「＋ 曲を追加する」から始めましょう。</div>`;
@@ -672,15 +697,48 @@ $('#adjList').addEventListener('click', e=>{
 });
 
 /* ---------- バックアップ ---------- */
+function getNum(key){ try{ return +localStorage.getItem(key) || 0; }catch(e){ return 0; } }
+function backupJson(){ return JSON.stringify({app:'chinese-karaoke', version:1, savedAt:new Date().toISOString(), songs}); }
+function markBackedUp(){ try{ localStorage.setItem(BACKUP_KEY, String(Date.now())); }catch(e){} renderNotices(); showLastBackup(); }
+function showLastBackup(){
+  const t = getNum(BACKUP_KEY);
+  $('#bkLast').textContent = t ? `前にバックアップした日：${new Date(t).toLocaleDateString('ja-JP')}` : 'まだ一度もバックアップしていません。';
+}
 $('#btnBackup').onclick = ()=>{
-  $('#bkText').value = JSON.stringify({app:'chinese-karaoke', version:1, songs}, null, 0);
+  $('#bkText').value = backupJson();
+  showLastBackup();
   $('#dlgBackup').showModal();
 };
 $('#bkClose').onclick = ()=> $('#dlgBackup').close();
-$('#bkCopy').onclick = async ()=>{ toast(await copyText($('#bkText').value) ? 'コピーしました。メモ帳などに貼って保存してください' : 'コピーできませんでした'); };
-$('#bkLoad').onclick = ()=>{
-  let data; try{ data = JSON.parse($('#bkText').value); }catch(e){ toast('読み込めませんでした（全部コピーできているか確認してください）'); return; }
-  const list = Array.isArray(data) ? data : data.songs;
+
+// ① ファイルに保存
+$('#bkSave').onclick = async ()=>{
+  if(!songs.length){ toast('まだ曲がありません'); return; }
+  const d = new Date();
+  const name = `karaoke-backup-${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}.json`;
+  const blob = new Blob([backupJson()], {type:'application/json'});
+  // iPhoneなど：共有メニューから「"ファイル"に保存」できる
+  try{
+    const file = new File([blob], name, {type:'application/json'});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      await navigator.share({files:[file], title:'カラオケのバックアップ'});
+      markBackedUp(); toast('保存しました'); return;
+    }
+  }catch(e){
+    if(e && e.name==='AbortError'){ toast('保存をやめました'); return; }
+  }
+  // パソコンなど：そのままダウンロード
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
+  markBackedUp(); toast('ファイルを保存しました');
+};
+
+// ② ファイルから読み込む
+function importBackup(text){
+  let data; try{ data = JSON.parse(text); }catch(e){ toast('読み込めませんでした（バックアップのファイルか確認してください）'); return; }
+  const list = Array.isArray(data) ? data : (data && data.songs);
   if(!Array.isArray(list)){ toast('バックアップの形ではないようです'); return; }
   let add=0, upd=0;
   for(const s of list){
@@ -688,9 +746,52 @@ $('#bkLoad').onclick = ()=>{
     const k = songs.findIndex(x=>x.id===s.id);
     if(k>=0){ songs[k]=s; upd++; } else { songs.push(s); add++; }
   }
-  saveSongs(songs); renderList(); $('#dlgBackup').close();
+  saveSongs(songs); markBackedUp(); renderList(); $('#dlgBackup').close();
   toast(`読み込みました（新しく${add}曲・上書き${upd}曲）`);
+}
+$('#bkOpen').onclick = ()=> $('#bkFile').click();
+$('#bkFile').onchange = ()=>{
+  const f = $('#bkFile').files[0]; if(!f) return;
+  const rd = new FileReader();
+  rd.onload = ()=>{ importBackup(String(rd.result)); $('#bkFile').value=''; };
+  rd.onerror = ()=> toast('ファイルを読めませんでした');
+  rd.readAsText(f);
 };
+
+// 予備：文字でコピー／貼り付け
+$('#bkCopy').onclick = async ()=>{
+  if(await copyText($('#bkText').value)){ markBackedUp(); toast('コピーしました。メモ帳などに貼って保存してください'); }
+  else toast('コピーできませんでした');
+};
+$('#bkLoad').onclick = ()=> importBackup($('#bkText').value);
+
+/* ---------- お知らせ ---------- */
+function isIOS(){ return /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1); }
+function isHomeApp(){ return navigator.standalone === true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches); }
+function renderNotices(){
+  // ホーム画面のアイコンから開いていないとき（iPhone）
+  const home = $('#homeNotice');
+  if(isIOS() && !isHomeApp()){
+    home.innerHTML = `<b>📱 ホーム画面に追加して使うのがおすすめ</b>
+      Safariのままだと、7日ほど開かないと曲が消えることがあります。下の「共有ボタン（□に↑）」→「ホーム画面に追加」でアイコンを作り、<u>そのアイコンから</u>開いて使ってください。<br>
+      ※ アイコンの中は別の保存場所です。今ある曲は先に「バックアップ」でファイルに保存して、アイコンの中で読み込んでください。`;
+    home.classList.remove('hidden');
+  }else home.classList.add('hidden');
+
+  // バックアップしてから曲を変えたとき
+  const bk = $('#backupNotice');
+  const changed = getNum(CHANGED_KEY), backed = getNum(BACKUP_KEY);
+  if(songs.length && changed > backed){
+    bk.innerHTML = `<b>💾 バックアップしておきましょう</b>
+      ${backed ? `前のバックアップ（${new Date(backed).toLocaleDateString('ja-JP')}）のあとに曲が変わっています。` : 'まだ一度もバックアップしていません。'}
+      <div style="margin-top:8px"><button class="small main" id="bkNow">いまバックアップする</button></div>`;
+    bk.classList.remove('hidden');
+    $('#bkNow').onclick = ()=> $('#btnBackup').click();
+  }else bk.classList.add('hidden');
+}
+
+// 「このデータは消さないで」とブラウザにお願いする（できるブラウザだけ）
+try{ navigator.storage && navigator.storage.persist && navigator.storage.persist(); }catch(e){}
 
 /* ---------- はじめに ---------- */
 renderList();
